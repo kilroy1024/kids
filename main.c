@@ -3,68 +3,199 @@
 #include <time.h> 
 #include <string.h>
 #include <sys/time.h>
+#include <unistd.h> 
 
 #define TIMES 10
 #define MULTIPLICAND_START  (3)
 #define MULTIPLICAND_END    (9)
-#define STAT         0
-#define REL          1
-#define TIMEOUT_VAL  2
 #define PASS 19
 #define TIME_OUT 17
 #define CHECK_TIME 10
+#define TIME_TBL_VER "TIME_TBL_V1.1"
+#define TMP_FILE_NAME "tmp"
 
-int tbl[MULTIPLICAND_END - MULTIPLICAND_START + 1][9][3] = {0};
+enum TIMES_STAT {
+    STAT,         
+    REL,          
+    TIMEOUT_VAL,
+    NUM_OF_TIMES_STAT
+};
+#define STR_LEN 256
+#define BUF_LEN 10
+#define TIMES_END 9
+#define NUM_OF_TIMES (MULTIPLICAND_END - MULTIPLICAND_START + 1)
 
-void _show_total()
+struct pri_data {
+	uint32_t times;
+	uint32_t pass_cnt;
+	uint32_t fail_cnt;
+	uint8_t is_output_file;
+	char output_file[STR_LEN];
+};
+
+int tbl[NUM_OF_TIMES][TIMES_END][NUM_OF_TIMES_STAT] = {0};
+
+void _show_total(FILE *fd)
 {
     int i, k;
 
-    printf("num|01|02|03|04|05|06|07|08|09|\n");
+    fprintf(fd, "num|01|02|03|04|05|06|07|08|09|\n");
     for (i = 0; i< MULTIPLICAND_END - MULTIPLICAND_START + 1; i++) {
-    	printf("  %d|", i+MULTIPLICAND_START);
-    	for (k = 0; k < 9; k++) {
+    	fprintf(fd, "  %d|", i+MULTIPLICAND_START);
+    	for (k = 0; k < TIMES_END; k++) {
 	    if (tbl[i][k][REL] == PASS)
-    		printf("%02s|", "--");
+    		fprintf(fd, "%02s|", "--");
 	    else
-    		printf("%02d|", tbl[i][k][REL]);
+    		fprintf(fd, "%02d|", tbl[i][k][REL]);
 	}
-	printf("\n");
+	fprintf(fd, "\n");
     }
 }
 
-void _show_timeout()
+void _show_timeout(FILE *fd)
 {
     int i, k;
     for (i = 0; i< MULTIPLICAND_END - MULTIPLICAND_START + 1; i++) {
-    	for (k = 0; k < 9; k++) {
+    	for (k = 0; k < TIMES_END; k++) {
 //	    if (tbl[i][k][TIMEOUT_VAL] > CHECK_TIME || tbl[i][k][REL] != PASS)
-	    	printf("=> %02d x %02d time spend: %d, result = %s\n", 
+	    	fprintf(fd, "=> %02d x %02d time spend: %d, result = %s\n", 
 		i + MULTIPLICAND_START, k+1, tbl[i][k][TIMEOUT_VAL], tbl[i][k][REL] == PASS?"pass":"fail");
 	}
     }
     return ;
 }
 
-void main()
+static void _print_time(FILE *fd)
+{
+    time_t t = time(NULL);
+
+    struct tm tm = *localtime(&t);
+
+    fprintf(fd, "test finish at: %d-%02d-%02d %02d:%02d:%02d\n", tm.tm_year + 1900, 
+        tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
+
+}
+
+static int _input_check(int argc, const char *argv[], struct pri_data *p_data)
+{
+	int opt;
+	int opt_count;
+	char in[STR_LEN];
+	
+	while ((opt = getopt(argc, (char *const *)argv, "c:ef:h")) != -1) {
+		switch (opt) {
+		case 'c':
+			sscanf(optarg, "%s", in);
+			printf("with input arg %s\n", in);
+			return -1;
+		case 'e':
+			printf("with no input arg\n");
+			return -1;
+		case 'f':
+			sscanf(optarg, "%s", p_data->output_file);
+			p_data->is_output_file = 1;
+			break;
+		case 'h':
+		default:
+			printf("-c test with input arg\n");
+			printf("-e test with no input arg\n");
+			return -1;
+		}
+	}
+
+	return 0;
+}
+
+static void _print_result(struct pri_data *pri_data)
+{
+    FILE *fd;
+
+    if (pri_data->is_output_file)
+        fd=fopen(pri_data->output_file, "w");
+    else
+        fd=fopen(TMP_FILE_NAME, "ab+");
+
+    fprintf(fd, "\n=========================================\n");
+    fprintf(fd, "Times table: version: %s\n", TIME_TBL_VER);
+    _print_time(fd);
+
+    if (pri_data->pass_cnt == pri_data->times) {
+        fprintf(fd, "*************************************\n");
+        fprintf(fd, "*************************************\n");
+	fprintf(fd, "ALL PASS\n");
+        fprintf(fd, "*************************************\n");
+        fprintf(fd, "*************************************\n");
+    }
+
+    fprintf(fd, "--------------------------------------\n");
+    fprintf(fd, "pass: %d \n", pri_data->pass_cnt);
+    fprintf(fd, "fail: %d \n", pri_data->times - pri_data->pass_cnt);
+    fprintf(fd, "--------------------------------------\n");
+    _show_total(fd);
+    fprintf(fd, "--------------------------------------\n");
+    _show_timeout(fd);
+    fprintf(fd, "=========================================\n\n\n");
+
+}
+
+static void _output_to_stdout(struct pri_data *pri_data)
+{
+    FILE *fd;
+    char line[STR_LEN]; 
+
+    if (pri_data->is_output_file)
+        fd=fopen(pri_data->output_file, "r");
+    else
+        fd=fopen(TMP_FILE_NAME, "r");
+
+    while (!feof(fd)) 
+    { 
+       fgets(line, STR_LEN, fd);
+       printf("%s", line); 
+    } 
+
+    fclose(fd);
+}
+
+static void _show_times_of_two(int multiplicand, int multiplier)
+{
+    uint8_t i, j;
+    for (i=1; i<=multiplier; i++) {
+        for (j=0; j<multiplicand; j++) {
+    	printf("O");
+        }
+        printf("\n");
+        if (i == 2 | i == 4 | i == 8)
+            printf("\n");
+    }
+}
+
+void main(int argc, const char *argv[])
 {
     int multiplicand, multiplier; 
-    int i, j, k, ans;
+    int i, k, ans;
     int pass_cnt=0;
     int times = (MULTIPLICAND_END-MULTIPLICAND_START+1)*9;
     char term;
     struct  timeval    t_start, t_end;
+    struct pri_data pri_data;
+    char *end;
+    char buf[BUF_LEN];
+    int t_diff = 0;
+
+    memset(&pri_data, 0, sizeof(pri_data));
+
+    if (_input_check(argc, argv, &pri_data))
+	return;
 
     srand(time(0));
     for (k=0; k<times; k++)
     {
         printf("*************************************\n");
 
-        //b=(rand()%9)+1;
-        //a=(rand()%9)+1;
 	while (1) {
             multiplicand = (rand() % (MULTIPLICAND_END - MULTIPLICAND_START + 1)) + MULTIPLICAND_START;
-            multiplier = (rand() % 9) + 1;
+            multiplier = (rand() % TIMES_END) + 1;
 
 	    if (!tbl[multiplicand - MULTIPLICAND_START][multiplier-1][STAT]) {
 	        tbl[multiplicand - MULTIPLICAND_START][multiplier-1][STAT] = 1;
@@ -74,21 +205,10 @@ void main()
 	    }
 	}
         printf("%d x %d = ? \n", multiplicand, multiplier);
-
-	for (i=1; i<=multiplier; i++) {
-	    for (j=0; j<multiplicand; j++) {
-		printf("O");
-	    }
-	    printf("\n");
-	    if (i == 2 | i == 4 | i == 8)
-	        printf("\n");
-	}
+        
+	_show_times_of_two(multiplicand, multiplier);
 
         gettimeofday(&t_start, NULL);
-	//scanf("%d", &ans);
-       char *end;
-       char buf[10];
-       int t_diff = 0;
 
         do {
             if (!fgets(buf, sizeof buf, stdin))
@@ -96,7 +216,7 @@ void main()
 
             buf[strlen(buf) - 1] = 0;
 
-            ans = strtol(buf, &end, 10);
+            ans = strtol(buf, &end, BUF_LEN);
         } while (end != buf + strlen(buf));
 
         gettimeofday(&t_end, NULL);
@@ -115,22 +235,11 @@ void main()
         printf("*************************************\n");
     }
 	
-    if (pass_cnt == times) {
-        printf("*************************************\n");
-        printf("*************************************\n");
-	printf("ALL PASS\n");
-        printf("*************************************\n");
-        printf("*************************************\n");
-    }
+    pri_data.times = times;
+    pri_data.pass_cnt = pass_cnt;
+    pri_data.fail_cnt = times - pass_cnt;
 
-    printf("--------------------------------------\n");
-    printf("pass %d \n", pass_cnt);
-    printf("fail %d \n", times - pass_cnt);
-    printf("--------------------------------------\n");
-    _show_total();
-    printf("--------------------------------------\n");
-    _show_timeout();
-    printf("--------------------------------------\n");
-    printf("\n");
-    printf("--------------------------------------\n");
+    _print_result(&pri_data);
+    _output_to_stdout(&pri_data);
+
 }
