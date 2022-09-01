@@ -7,7 +7,7 @@
 
 #define TIMES 10
 #define MULTIPLICAND_START  (3)
-#define MULTIPLICAND_END    (9)
+#define MULTIPLICAND_END    (3)
 #define PASS 19
 #define TIME_OUT 17
 #define CHECK_TIME 10
@@ -136,6 +136,7 @@ static void _print_result(struct pri_data *pri_data)
     _show_timeout(fd);
     fprintf(fd, "=========================================\n\n\n");
 
+    fclose(fd);
 }
 
 static void _output_to_stdout(struct pri_data *pri_data)
