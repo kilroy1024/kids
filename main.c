@@ -171,23 +171,17 @@ static void _show_times_of_two(int multiplicand, int multiplier)
     }
 }
 
-void main(int argc, const char *argv[])
+static void times_table(struct pri_data *pri_data)
 {
+    int k = 0;
+    int ans = 0;
     int multiplicand, multiplier; 
-    int i, k, ans;
-    int pass_cnt=0;
-    int times = (MULTIPLICAND_END-MULTIPLICAND_START+1)*9;
-    char term;
     struct  timeval    t_start, t_end;
-    struct pri_data pri_data;
-    char *end;
     char buf[BUF_LEN];
+    char *end;
+    int pass_cnt=0;
     int t_diff = 0;
-
-    memset(&pri_data, 0, sizeof(pri_data));
-
-    if (_input_check(argc, argv, &pri_data))
-	return;
+    int times = (MULTIPLICAND_END-MULTIPLICAND_START+1)*9;
 
     srand(time(0));
     for (k=0; k<times; k++)
@@ -236,11 +230,24 @@ void main(int argc, const char *argv[])
         printf("*************************************\n");
     }
 	
-    pri_data.times = times;
-    pri_data.pass_cnt = pass_cnt;
-    pri_data.fail_cnt = times - pass_cnt;
+    pri_data->times = times;
+    pri_data->pass_cnt = pass_cnt;
+    pri_data->fail_cnt = times - pass_cnt;
 
-    _print_result(&pri_data);
-    _output_to_stdout(&pri_data);
+    _print_result(pri_data);
+    _output_to_stdout(pri_data);
+
+}
+
+void main(int argc, const char *argv[])
+{
+    struct pri_data pri_data;
+
+    memset(&pri_data, 0, sizeof(pri_data));
+
+    if (_input_check(argc, argv, &pri_data))
+	return;
+
+    times_table(&pri_data);
 
 }
