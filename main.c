@@ -7,7 +7,7 @@
 
 #define TIMES 10
 #define MULTIPLICAND_START  (3)
-#define MULTIPLICAND_END    (3)
+#define MULTIPLICAND_END    (9)
 #define PASS 19
 #define TIME_OUT 17
 #define CHECK_TIME 10
