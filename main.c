@@ -14,18 +14,26 @@
 #define TIME_TBL_VER "TIME_TBL_V1.1"
 #define TMP_FILE_NAME "tmp"
 
+enum EMENU_SET_CMD {
+    EMENU_TIME_TBL,
+    EMENU_TEST,
+    EMENU_SET_CMD_NUM
+};
+
 enum TIMES_STAT {
     STAT,         
     REL,          
     TIMEOUT_VAL,
     NUM_OF_TIMES_STAT
 };
+
 #define STR_LEN 256
 #define BUF_LEN 10
 #define TIMES_END 9
 #define NUM_OF_TIMES (MULTIPLICAND_END - MULTIPLICAND_START + 1)
 
 struct pri_data {
+	uint32_t cmd;
 	uint32_t times;
 	uint32_t pass_cnt;
 	uint32_t fail_cnt;
@@ -82,7 +90,7 @@ static int _input_check(int argc, const char *argv[], struct pri_data *p_data)
 	int opt_count;
 	char in[STR_LEN];
 	
-	while ((opt = getopt(argc, (char *const *)argv, "c:ef:h")) != -1) {
+	while ((opt = getopt(argc, (char *const *)argv, "c:ef:m:h")) != -1) {
 		switch (opt) {
 		case 'c':
 			sscanf(optarg, "%s", in);
@@ -94,6 +102,11 @@ static int _input_check(int argc, const char *argv[], struct pri_data *p_data)
 		case 'f':
 			sscanf(optarg, "%s", p_data->output_file);
 			p_data->is_output_file = 1;
+			break;
+		case 'm':
+			sscanf(optarg, "%s", in);
+			p_data->cmd = atoi(in);
+			printf("cmd is %d\n", p_data->cmd);
 			break;
 		case 'h':
 		default:
@@ -189,7 +202,8 @@ static void times_table(struct pri_data *pri_data)
         printf("*************************************\n");
 
 	while (1) {
-            multiplicand = (rand() % (MULTIPLICAND_END - MULTIPLICAND_START + 1)) + MULTIPLICAND_START;
+            multiplicand = (rand() % (MULTIPLICAND_END - MULTIPLICAND_START + 1)) 
+	                 + MULTIPLICAND_START;
             multiplier = (rand() % TIMES_END) + 1;
 
 	    if (!tbl[multiplicand - MULTIPLICAND_START][multiplier-1][STAT]) {
@@ -239,6 +253,20 @@ static void times_table(struct pri_data *pri_data)
 
 }
 
+static void menu_set(struct pri_data *pri_data)
+{
+    printf("!! pri_data = %d\n", pri_data->cmd);
+
+    switch (pri_data->cmd) {
+    case EMENU_TEST:
+    	printf("test %d\n", EMENU_TEST);
+        break;
+    case EMENU_TIME_TBL:
+    default:
+        times_table(pri_data);
+    }
+}
+
 void main(int argc, const char *argv[])
 {
     struct pri_data pri_data;
@@ -248,6 +276,7 @@ void main(int argc, const char *argv[])
     if (_input_check(argc, argv, &pri_data))
 	return;
 
-    times_table(&pri_data);
+    menu_set(&pri_data);
+    //times_table(&pri_data);
 
 }
