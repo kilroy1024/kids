@@ -9,6 +9,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #define PORT 8080
+#define UDP_PORT 8888
 
 
 #define TIMES 10
@@ -360,6 +361,115 @@ static int client(struct pri_data *pri_data)
     return 0;
 }
 
+static int svr_udp(struct pri_data *pri_data)
+{
+    int sockfd;
+    struct sockaddr_in server_addr, client_addr;
+    int so_broadcast = 1;
+    char buf[1024];
+   
+    /*Create an IPv4 UDP socket*/
+    if((sockfd = socket(PF_INET, SOCK_DGRAM, 0))<0){
+        perror("socket");
+        return -1;
+    }
+   
+    /*SO_BROADCAST: broadcast attribute*/
+    if(setsockopt(sockfd, SOL_SOCKET, SO_BROADCAST, &so_broadcast, sizeof(so_broadcast))<0){
+        perror("setsockopt");
+        return -1;
+    }
+   
+    server_addr.sin_family = AF_INET; /*IPv4*/
+    server_addr.sin_port = htons(INADDR_ANY); /*All the port*/
+    server_addr.sin_addr.s_addr = htonl(INADDR_BROADCAST); /*Broadcast address*/
+    server_addr.sin_addr.s_addr = inet_addr("192.168.0.114"); /*Broadcast address*/
+   
+    if((bind(sockfd, (struct sockaddr*)&server_addr, sizeof(struct sockaddr))) != 0){
+        perror("bind");
+        return -1;
+    }
+   
+    client_addr.sin_family = AF_INET; /*IPv4*/
+    client_addr.sin_port = htons(UDP_PORT);  /*Set port number*/
+    client_addr.sin_addr.s_addr = htonl(INADDR_BROADCAST); /*The broadcast address*/
+    int clientlen = sizeof(client_addr);
+   
+    while(1){
+        printf("Please input your word :> ");
+        //scanf("%s", buf);
+        fgets(buf, sizeof(buf), stdin); /*U can enter string by yourself*/
+   
+        /*Use sendto() to send messages to client*/
+        /*sendto() doesn't need to be connected*/
+        if((sendto(sockfd, buf, strlen(buf), 0, (struct sockaddr*)&client_addr, (socklen_t)clientlen)) < 0){
+            perror("sendto");
+            return -1;
+        } else {
+            printf("send msg %s\n", buf);
+        }
+    }
+    close(sockfd);
+    return 0;
+}
+
+static int client_udp(struct pri_data *pri_data)
+{
+    int sockfd;
+    struct sockaddr_in serv_addr, client_addr;
+    int yes = 1;
+    ssize_t size;
+    socklen_t addrlen = sizeof(client_addr);
+    char buf[200];
+   
+    //Create an IPv4 and UDP socket
+    if((sockfd = socket(PF_INET, SOCK_DGRAM, 0))<0){
+        perror("socket");
+        return -1;
+    }
+   
+    //Set the struct of sockaddr_in
+    serv_addr.sin_family = AF_INET;
+    serv_addr.sin_port = htons(UDP_PORT);
+    serv_addr.sin_addr.s_addr = htonl(INADDR_ANY); /*All the host*/
+   
+    /*Set communication address can be reused*/
+    if(setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes))<0){
+        perror("setsockopt");
+        return -1;
+    }
+   
+    if(bind(sockfd, (struct sockaddr *)&serv_addr, sizeof(struct sockaddr)) != 0){
+        perror("bind");
+        return -1;
+    }
+   
+    while(1){
+        memset(buf, 0, 200); /*Clean up the buffer*/
+        size = 0;
+   
+        /*Use recvfrom() to receive the messages from server*/
+        size = recvfrom(sockfd, buf, 200, 0, (struct sockaddr *)&client_addr, &addrlen);
+        if(size<0){
+            perror("recvfrom");
+            return -1;
+        }
+   
+        //buf[size] = '\0'; /* '\0' means final character*/
+        printf("IP:%s msg: %s\n", inet_ntoa(client_addr.sin_addr), buf);
+   
+        /*If the buffer message is "quit", we will close socket fd and end the process*/
+        if(strcmp(buf, "quit") == 0){
+            printf("system quit!\n");
+            close(sockfd);
+            return 0;
+        }
+    }
+   
+    close(sockfd);
+    return 0;
+}
+
 static void menu_set(struct pri_data *pri_data)
 {
     switch (pri_data->cmd) {
@@ -367,12 +477,12 @@ static void menu_set(struct pri_data *pri_data)
     	printf("test %d\n", EMENU_TEST);
         break;
     case EMENU_SVR:
-	printf("server :\n");
-	svr(pri_data);
+	printf("server udp:\n");
+	svr_udp(pri_data);
     	break;
     case EMENU_CLIENT:
-	printf("client :\n");
-	client(pri_data);
+	printf("client udp:\n");
+	client_udp(pri_data);
     	break;
     case EMENU_TIME_TBL:
 
